@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Casos Hemodinâmica</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="dot"></span>Casos Hemodinâmica</div>
+    <nav class="tabs hidden" id="tabs">
+      <button class="tab on" data-v="novo">Novo caso</button>
+      <button class="tab" data-v="lista">Casos <span id="count"></span></button>
+    </nav>
+    <div class="user hidden" id="user"><span id="userName"></span><button class="btn sm" id="btnLogout">Sair</button></div>
+  </div>
+</header>
+
+<main>
+  <div class="msg" id="msg"></div>
+
+  <!-- Login -->
+  <section id="vLogin" class="welcome">
+    <h1>Repositório de casos</h1>
+    <p>Entre com sua conta Microsoft. Os casos e as imagens são gravados direto na pasta do seu OneDrive.</p>
+    <div class="row" style="justify-content:center;margin-top:20px">
+      <button class="btn pri ms" id="btnLogin">
+        <svg viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Entrar com Microsoft
+      </button>
+    </div>
+    <p class="small" style="margin-top:24px">Em computador compartilhado, use uma aba anônima e clique em <b>Sair</b> ao terminar. A sessão também é encerrada após 30 min sem uso.</p>
+    <p class="small hidden" id="cfgMissing" style="color:var(--err)">Falta configurar o CLIENT_ID em <code>config.js</code>.</p>
+  </section>
+
+  <!-- Formulário -->
+  <section id="vForm" class="hidden">
+    <form id="form" class="card" autocomplete="off">
+      <h2 id="formTitle">Novo caso</h2>
+      <p class="sub" id="formSub">Preencha os campos e anexe as imagens. A planilha é atualizada ao salvar.</p>
+      <div class="grid">
+        <div class="f c8"><label for="nome">Nome do paciente</label><input id="nome" required></div>
+        <div class="f c4"><label for="idade">Idade</label><input id="idade" type="number" min="0" max="120" inputmode="numeric"></div>
+        <div class="f c4"><label for="prontuario">Prontuário</label><input id="prontuario"></div>
+        <div class="f c4"><label for="data">Data do exame</label><input id="data" type="date" required></div>
+        <div class="f c4"><label for="proc">Tipo de procedimento</label><select id="proc" required></select></div>
+        <div class="f c12 hidden" id="procOutroWrap"><label for="procOutro">Qual procedimento?</label><input id="procOutro"></div>
+        <div class="f c12"><label for="resumo">Resumo do caso</label><textarea id="resumo" rows="6"></textarea></div>
+
+        <div class="f c12">
+          <label>Imagens <span class="opt">— .jpg, .mp4, DICOM, pastas inteiras…</span></label>
+          <div class="drop" id="drop">
+            <div>Arraste arquivos ou pastas aqui</div>
+            <div class="row" style="justify-content:center;margin-top:10px">
+              <button type="button" class="btn sm" id="pickFiles">Escolher arquivos</button>
+              <button type="button" class="btn sm" id="pickDir">Escolher pasta (DICOM)</button>
+            </div>
+            <input type="file" id="inFiles" multiple hidden>
+            <input type="file" id="inDir" webkitdirectory hidden>
+          </div>
+          <div id="existing" class="small hidden" style="margin-top:10px"></div>
+          <ul class="files" id="fileList"></ul>
+        </div>
+
+        <div class="f c12">
+          <label>Evolução <span class="opt">— opcional</span></label>
+          <div id="evoList"></div>
+          <div class="grid" style="gap:10px">
+            <div class="f c3"><input id="evoData" type="date" title="Data da informação evolutiva"></div>
+            <div class="f c12" style="grid-column:span 9"><textarea id="evoTexto" rows="2" placeholder="Nova informação evolutiva (deixe em branco se não houver)" style="min-height:60px"></textarea></div>
+          </div>
+        </div>
+      </div>
+      <div class="prog" id="prog"><i></i></div>
+      <div class="small" id="progTxt" style="margin-top:6px"></div>
+      <div class="actions" style="margin-top:18px">
+        <button type="button" class="btn hidden" id="btnCancel">Voltar</button>
+        <button type="submit" class="btn pri" id="btnSave">Salvar caso</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Lista -->
+  <section id="vList" class="hidden">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <input id="q" placeholder="Buscar por nome, prontuário, resumo…" style="flex:1;min-width:200px">
+        <select id="fProc" style="width:auto"><option value="">Todos os procedimentos</option></select>
+        <button class="btn sm" id="btnReload" title="Recarregar do OneDrive">Recarregar</button>
+        <button class="btn sm" id="btnXlsx" title="Regerar a planilha a partir dos dados salvos">Atualizar planilha</button>
+      </div>
+      <div class="list" id="list"></div>
+      <p class="small" style="margin-top:14px">Pasta no OneDrive: <b id="rootName"></b> · <button class="link" id="btnRoot">alterar</button></p>
+    </div>
+  </section>
+</main>
+
+<div class="modal hidden" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delTitle">
+  <div class="card">
+    <h2 id="delTitle">Excluir caso</h2>
+    <p class="sub" id="delTxt" style="margin-top:8px"></p>
+    <label class="row" style="font-weight:400;color:var(--ink);font-size:14px;gap:8px"><input type="checkbox" id="delImgs" checked style="width:auto"> Apagar também a pasta de imagens</label>
+    <p class="small" style="margin:8px 0 0">Os arquivos apagados vão para a lixeira do OneDrive, onde ficam recuperáveis por cerca de 30 dias.</p>
+    <div class="actions" style="margin-top:18px"><button type="button" class="btn" id="delNo">Cancelar</button><button type="button" class="btn danger" id="delYes">Excluir</button></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="lib/msal-browser.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
