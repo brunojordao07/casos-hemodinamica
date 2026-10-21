@@ -176,6 +176,7 @@ function show(v){
 
 /* ---------- Procedimentos ---------- */
 function fillProcSelects(){
+  $("#hospList").innerHTML=[...new Set(db.casos.map(c=>c.hospital).filter(Boolean))].sort().map(h=>`<option value="${esc(h)}">`).join("");
   $("#proc").innerHTML = '<option value="">Selecione…</option>' + allProcs().map(p => `<option>${esc(p)}</option>`).join("") + '<option value="__outro">Outro…</option>';
   $("#fProc").innerHTML = '<option value="">Todos os procedimentos</option>' + [...new Set(db.casos.map(c => c.procedimento))].sort().map(p => `<option>${esc(p)}</option>`).join("");
   $("#count").textContent = `(${db.casos.length})`;
@@ -220,7 +221,7 @@ function newCase(){
 async function openCase(id){
   const c = db.casos.find(x => x.id === id); if(!c) return;
   show("novo"); editing = c; pending = []; renderFiles();
-  $("#nome").value = c.nome; $("#idade").value = c.idade ?? ""; $("#prontuario").value = c.prontuario || ""; $("#data").value = c.data;
+  $("#nome").value = c.nome; $("#idade").value = c.idade ?? ""; $("#prontuario").value = c.prontuario || ""; $("#hospital").value = c.hospital || ""; $("#data").value = c.data;
   fillProcSelects(); $("#proc").value = c.procedimento; $("#procOutroWrap").classList.add("hidden");
   $("#resumo").value = c.resumo || ""; $("#evoTexto").value = ""; $("#evoData").value = today();
   $("#evoList").innerHTML = (c.evolucoes||[]).map(e => `<div class="evo"><div class="dt">${fmtDate(e.data)}</div><div style="white-space:pre-wrap">${esc(e.texto)}</div></div>`).join("");
@@ -242,7 +243,7 @@ $("#form").addEventListener("submit", async e => {
   let proc = $("#proc").value, novoProc = null;
   if(proc === "__outro"){ proc = $("#procOutro").value.trim(); if(!proc){ msg("Informe qual é o procedimento.", "warn"); return; } if(!allProcs().includes(proc)) novoProc = proc; }
   const now = new Date().toISOString();
-  const fields = { nome:$("#nome").value.trim(), idade:$("#idade").value === "" ? null : +$("#idade").value, prontuario:$("#prontuario").value.trim(),
+  const fields = { nome:$("#nome").value.trim(), idade:$("#idade").value === "" ? null : +$("#idade").value, prontuario:$("#prontuario").value.trim(), hospital:$("#hospital").value.trim(),
     data:$("#data").value, procedimento:proc, resumo:$("#resumo").value.trim() };
   const evo = $("#evoTexto").value.trim() ? { data:$("#evoData").value || today(), texto:$("#evoTexto").value.trim() } : null;
   const files = pending.slice(), editId = editing && editing.id;
@@ -309,14 +310,14 @@ async function buildXlsx(){
   const ws = wb.addWorksheet("Casos", { views: [{ state:"frozen", xSplit:2, ySplit:1 }] });
   ws.columns = [
     {header:"ID do caso",key:"id",width:12},{header:"Nome do paciente",key:"nome",width:28},{header:"Idade",key:"idade",width:7},
-    {header:"Prontuário",key:"prontuario",width:14},{header:"Data do exame",key:"data",width:13,style:{numFmt:"dd/mm/yyyy"}},
+    {header:"Prontuário",key:"prontuario",width:14},{header:"Hospital",key:"hospital",width:24},{header:"Data do exame",key:"data",width:13,style:{numFmt:"dd/mm/yyyy"}},
     {header:"Tipo de procedimento",key:"procedimento",width:26},{header:"Resumo do caso",key:"resumo",width:60},
     {header:"Imagens (pasta)",key:"pasta",width:34},{header:"Evolução",key:"evolucao",width:55},
     {header:"Data da última evolução",key:"ultEvo",width:14,style:{numFmt:"dd/mm/yyyy"}}];
   const toDate = iso => { if(!iso) return null; const [y,m,d] = iso.split("-").map(Number); return new Date(Date.UTC(y, m-1, d)); };
   for(const c of [...db.casos].sort((a,b) => String(a.id).localeCompare(String(b.id)))){
     const ev = c.evolucoes || [];
-    const r = ws.addRow({ id:c.id, nome:c.nome, idade:c.idade, prontuario:c.prontuario, data:toDate(c.data), procedimento:c.procedimento,
+    const r = ws.addRow({ id:c.id, nome:c.nome, idade:c.idade, prontuario:c.prontuario, hospital:c.hospital || "", data:toDate(c.data), procedimento:c.procedimento,
       resumo:c.resumo, pasta:{ text:c.pasta, hyperlink: c.pastaUrl || `${IMG_DIR}/${c.pasta}` },
       evolucao: ev.map(e => `${fmtDate(e.data)}: ${e.texto}`).join("\n"), ultEvo: ev.length ? toDate(ev[ev.length-1].data) : null });
     r.getCell("prontuario").numFmt = "@";
@@ -325,7 +326,7 @@ async function buildXlsx(){
   }
   const h = ws.getRow(1); h.height = 30;
   h.eachCell(cell => { cell.font = { bold:true, color:{ argb:"FFFFFFFF" } }; cell.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FF8B1E2D" } }; cell.alignment = { vertical:"middle", wrapText:true }; });
-  ws.autoFilter = { from:"A1", to:"J1" };
+  ws.autoFilter = { from:"A1", to:"K1" };
   return new Blob([await wb.xlsx.writeBuffer()], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 async function writeXlsx(){
@@ -338,10 +339,10 @@ $("#btnXlsx").onclick = async () => { (await writeXlsx()) ? msg("Planilha atuali
 function renderList(){
   const norm = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const q = norm($("#q").value), fp = $("#fProc").value;
-  const items = [...db.casos].reverse().filter(c => (!fp || c.procedimento === fp) && (!q || norm([c.id,c.nome,c.prontuario,c.procedimento,c.resumo,...(c.evolucoes||[]).map(e => e.texto)].join(" ")).includes(q)));
+  const items = [...db.casos].reverse().filter(c => (!fp || c.procedimento === fp) && (!q || norm([c.id,c.nome,c.prontuario,c.hospital,c.procedimento,c.resumo,...(c.evolucoes||[]).map(e => e.texto)].join(" ")).includes(q)));
   $("#list").innerHTML = items.length ? items.map(c => `<div class="item" data-id="${esc(c.id)}">
     <div><div class="id">${esc(c.id)}</div><div class="d">${fmtDate(c.data)}</div></div>
-    <div><div class="t">${esc(c.nome)}${c.idade != null ? `, ${c.idade} a` : ""}</div><div class="d">${c.prontuario ? "Pront. " + esc(c.prontuario) + " · " : ""}${esc((c.resumo||"").slice(0,110))}${(c.resumo||"").length > 110 ? "…" : ""}</div></div>
+    <div><div class="t">${esc(c.nome)}${c.idade != null ? `, ${c.idade} a` : ""}</div><div class="d">${c.hospital ? esc(c.hospital) + " · " : ""}${c.prontuario ? "Pront. " + esc(c.prontuario) + " · " : ""}${esc((c.resumo||"").slice(0,110))}${(c.resumo||"").length > 110 ? "…" : ""}</div></div>
     <div style="text-align:right"><span class="chip">${esc(c.procedimento)}</span>${(c.evolucoes||[]).length ? `<div class="d" style="margin-top:4px">${c.evolucoes.length} evolução(ões)</div>` : ""}</div>
     <button type="button" class="del" data-del="${esc(c.id)}" title="Excluir caso" aria-label="Excluir ${esc(c.id)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>
   </div>`).join("") : `<div class="empty">${db.casos.length ? "Nenhum caso encontrado." : "Nenhum caso ainda. Cadastre o primeiro em “Novo caso”."}</div>`;

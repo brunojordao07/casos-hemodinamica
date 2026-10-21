@@ -44,9 +44,10 @@
       <div class="grid">
         <div class="f c8"><label for="nome">Nome do paciente</label><input id="nome" required></div>
         <div class="f c4"><label for="idade">Idade</label><input id="idade" type="number" min="0" max="120" inputmode="numeric"></div>
+        <div class="f c8"><label for="hospital">Hospital</label><input id="hospital" list="hospList" placeholder="De onde veio o caso"><datalist id="hospList"></datalist></div>
         <div class="f c4"><label for="prontuario">Prontuário</label><input id="prontuario"></div>
         <div class="f c4"><label for="data">Data do exame</label><input id="data" type="date" required></div>
-        <div class="f c4"><label for="proc">Tipo de procedimento</label><select id="proc" required></select></div>
+        <div class="f c8"><label for="proc">Tipo de procedimento</label><select id="proc" required></select></div>
         <div class="f c12 hidden" id="procOutroWrap"><label for="procOutro">Qual procedimento?</label><input id="procOutro"></div>
         <div class="f c12"><label for="resumo">Resumo do caso</label><textarea id="resumo" rows="6"></textarea></div>
 
